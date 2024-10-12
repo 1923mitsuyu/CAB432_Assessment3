@@ -1,0 +1,8 @@
+/* In App.css */
+.placeholder-black::placeholder {
+    color: black;
+}
+  
+.placeholder-red::placeholder {
+    color: red;
+}

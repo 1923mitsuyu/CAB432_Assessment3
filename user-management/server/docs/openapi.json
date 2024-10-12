@@ -1,0 +1,501 @@
+{
+    "openapi": "3.0.2",
+    "info": {
+      "title": "User Authentication and Word Management API",
+      "description": "API for user authentication, word management, and session handling",
+      "version": "1.0.0",
+      "contact": {
+        "email": "ikufumimitsuyu@icloud.com"
+      },
+      "license": {
+        "name": "Apache 2.0",
+        "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+      }
+    },
+    "paths": {
+      "/api/login": {
+        "get": {
+          "summary": "User Login (Sign In)",
+          "description": "Query user information with a specific password from the database",
+          "parameters": [
+            {
+              "name": "first_name",
+              "in": "query",
+              "description": "First name of the user",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "last_name",
+              "in": "query",
+              "description": "Last name of the user",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "password",
+              "in": "query",
+              "description": "Password of the user",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "boolean"
+                      },
+                      "user": {
+                        "type": "object",
+                        "properties": {
+                          "first_name": {
+                            "type": "string"
+                          },
+                          "last_name": {
+                            "type": "string"
+                          },
+                          "password": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal Server Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/users": {
+        "post": {
+          "summary": "Create New User (Sign Up)",
+          "description": "Create a new user account",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "first_name": {
+                      "type": "string"
+                    },
+                    "last_name": {
+                      "type": "string"
+                    },
+                    "password": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["first_name", "last_name", "password"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "userId": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad Request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/logout": {
+        "post": {
+          "summary": "Logging Out",
+          "description": "Destroy session to log out the user",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal Server Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/word": {
+        "get": {
+          "summary": "Word List",
+          "description": "Query all data in the table",
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "word": {
+                          "type": "string"
+                        },
+                        "example": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Data not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Internal Server Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/newword": {
+        "post": {
+          "summary": "Create New Word",
+          "description": "Create a new pair of word and example",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "word": {
+                      "type": "string"
+                    },
+                    "example": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["word", "example"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "wordId": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad Request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/updateword": {
+        "put": {
+          "summary": "Update Word",
+          "description": "Update an existing word and example",
+          "parameters": [
+            {
+              "name": "word",
+              "in": "query",
+              "description": "Current word",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "example",
+              "in": "query",
+              "description": "Current example",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "newWord",
+              "in": "query",
+              "description": "New word",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "newExample",
+              "in": "query",
+              "description": "New example",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad Request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/deleteword": {
+        "delete": {
+          "summary": "Delete Word",
+          "description": "Delete an existing word and example",
+          "parameters": [
+            {
+              "name": "word",
+              "in": "query",
+              "description": "Word to delete",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "example",
+              "in": "query",
+              "description": "Example to delete",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Success",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Bad Request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "success": {
+                        "type": "boolean"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+}
+  
