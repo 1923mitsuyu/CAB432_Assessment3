@@ -18,64 +18,6 @@ const client2 = new SSM.SSMClient({ region: "ap-southeast-2" });
 const hostParameterName = process.env.HOST_PARAMETER_NAME;
 const databaseParameterName = process.env.DATABASE_PARAMETER_NAME;
 
-// const SQS = require("@aws-sdk/client-sqs");
-
-// const message = "This is the message that will be queued.";
-// const sqsQueueUrl = "https://sqs.ap-southeast-2.amazonaws.com/901444280953/video-compression-requests-n11535857";
-
-// const client3 = new SQS.SQSClient({
-//   region: "ap-southeast-2",
-// });
-
-// // Function to send a message to the SQS queue
-// async function sendMessageToQueue(message) {
-//   const command = new SQS.SendMessageCommand({
-//     QueueUrl: sqsQueueUrl,
-//     DelaySeconds: 10,
-//     MessageBody: JSON.stringify(message),
-//  });
-
-//   try {
-//     const response = await client.send(command);
-//     console.log("Sending a message", response);
-//   } catch (error) {
-//     console.error("Error sending message to SQS:", error);
-//   }
-
-//   // Receive a message from the queue
-//   const receiveCommand = new SQS.ReceiveMessageCommand({
-//     MaxNumberOfMessages: 1,
-//     QueueUrl: sqsQueueUrl,
-//     WaitTimeSeconds: 20, 
-//     VisibilityTimeout: 20, 
-//  });
-
-//  try {
-//     const receiveResponse = await client.send(receiveCommand);
-//     console.log("Receiving a message", response);
-//   } catch (error) {
-//     console.error("Error sending message to SQS:", error);
-//   }
-
-//   Messages = receiveResponse.Messages;
-//   if (!Messages) {
-//      console.log("No messages");
-//      return;
-//   }
-
-//   // Retrieve the first message from the body
-//   console.log("Message contents:", Messages[0].Body);
-  
-//   // Delete the message after dealt with.
-//   const deleteCommand = new SQS.DeleteMessageCommand({
-//     QueueUrl: sqsQueueUrl,
-//     ReceiptHandle: Messages[0].ReceiptHandle,
-//  });
-//  const deleteResponse = await client.send(deleteCommand);
-//  console.log("Deleting the message", deleteResponse);
-
-// }
-
 async function getParameters() {
   try {
 
