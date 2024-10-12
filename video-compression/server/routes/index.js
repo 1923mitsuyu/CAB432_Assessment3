@@ -50,69 +50,6 @@ let reconnectAttempts = {};
 // Serve static files
 router.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const SQS = require("@aws-sdk/client-sqs");
-
-const message = "This is the message that will be queued.";
-const sqsQueueUrl = "https://sqs.ap-southeast-2.amazonaws.com/901444280953/video-compression-requests-n11535857";
-
-// const client = new SQS.SQSClient({
-//   region: "ap-southeast-2",
-// });
-
-// Function to send a message (=compression requests) to the SQS queue
-// async function sendMessageToQueue(message) {
-//   const command = new SQS.SendMessageCommand({
-//     QueueUrl: sqsQueueUrl,
-//     DelaySeconds: 10,
-//     MessageBody: JSON.stringify(message),
-//  });
-
-//   try {
-//     const response = await client.send(command);
-//     console.log("Sending a message", response);
-//     // await processQueue();
-//   } catch (error) {
-//     console.error("Error sending message to SQS:", error);
-//   }
-// }
-
-// Process messages from SQS
-// async function processQueue() {
-//   const command = new ReceiveMessageCommand({
-//     QueueUrl: sqsQueueUrl,
-//     MaxNumberOfMessages: 1,
-//     WaitTimeSeconds: 20,
-//     VisibilityTimeout: 20,
-//   });
-
-//   try {
-//     const response = await client.send(command);
-//     if (!response.Messages || response.Messages.length === 0) {
-//       console.log("No messages received.");
-//       return;
-//     }
-
-//     const message = response.Messages[0];
-//     console.log("Received message:", message.Body);
-
-//     // Here, you can call your compression function
-//     await compressVideo(JSON.parse(message.Body));
-
-//     // Delete the message from the queue
-//     const deleteCommand = new DeleteMessageCommand({
-//       QueueUrl: sqsQueueUrl,
-//       ReceiptHandle: message.ReceiptHandle,
-//     });
-//     await client.send(deleteCommand);
-//     console.log("Message deleted from SQS.");
-//   } catch (error) {
-//     console.error("Error processing SQS queue:", error);
-//   }
-// }
-
-// Check the queue every 5 second
-// setInterval(processQueue, 5000); 
-
 // Listen for a new client connection
 io.on('connection', (socket) => {
   // Log the new client's unique socket ID
