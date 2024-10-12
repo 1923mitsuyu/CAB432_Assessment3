@@ -55,63 +55,63 @@ const SQS = require("@aws-sdk/client-sqs");
 const message = "This is the message that will be queued.";
 const sqsQueueUrl = "https://sqs.ap-southeast-2.amazonaws.com/901444280953/video-compression-requests-n11535857";
 
-const client = new SQS.SQSClient({
-  region: "ap-southeast-2",
-});
+// const client = new SQS.SQSClient({
+//   region: "ap-southeast-2",
+// });
 
 // Function to send a message (=compression requests) to the SQS queue
-async function sendMessageToQueue(message) {
-  const command = new SQS.SendMessageCommand({
-    QueueUrl: sqsQueueUrl,
-    DelaySeconds: 10,
-    MessageBody: JSON.stringify(message),
- });
+// async function sendMessageToQueue(message) {
+//   const command = new SQS.SendMessageCommand({
+//     QueueUrl: sqsQueueUrl,
+//     DelaySeconds: 10,
+//     MessageBody: JSON.stringify(message),
+//  });
 
-  try {
-    const response = await client.send(command);
-    console.log("Sending a message", response);
-    // await processQueue();
-  } catch (error) {
-    console.error("Error sending message to SQS:", error);
-  }
-}
+//   try {
+//     const response = await client.send(command);
+//     console.log("Sending a message", response);
+//     // await processQueue();
+//   } catch (error) {
+//     console.error("Error sending message to SQS:", error);
+//   }
+// }
 
 // Process messages from SQS
-async function processQueue() {
-  const command = new ReceiveMessageCommand({
-    QueueUrl: sqsQueueUrl,
-    MaxNumberOfMessages: 1,
-    WaitTimeSeconds: 20,
-    VisibilityTimeout: 20,
-  });
+// async function processQueue() {
+//   const command = new ReceiveMessageCommand({
+//     QueueUrl: sqsQueueUrl,
+//     MaxNumberOfMessages: 1,
+//     WaitTimeSeconds: 20,
+//     VisibilityTimeout: 20,
+//   });
 
-  try {
-    const response = await client.send(command);
-    if (!response.Messages || response.Messages.length === 0) {
-      console.log("No messages received.");
-      return;
-    }
+//   try {
+//     const response = await client.send(command);
+//     if (!response.Messages || response.Messages.length === 0) {
+//       console.log("No messages received.");
+//       return;
+//     }
 
-    const message = response.Messages[0];
-    console.log("Received message:", message.Body);
+//     const message = response.Messages[0];
+//     console.log("Received message:", message.Body);
 
-    // Here, you can call your compression function
-    await compressVideo(JSON.parse(message.Body));
+//     // Here, you can call your compression function
+//     await compressVideo(JSON.parse(message.Body));
 
-    // Delete the message from the queue
-    const deleteCommand = new DeleteMessageCommand({
-      QueueUrl: sqsQueueUrl,
-      ReceiptHandle: message.ReceiptHandle,
-    });
-    await client.send(deleteCommand);
-    console.log("Message deleted from SQS.");
-  } catch (error) {
-    console.error("Error processing SQS queue:", error);
-  }
-}
+//     // Delete the message from the queue
+//     const deleteCommand = new DeleteMessageCommand({
+//       QueueUrl: sqsQueueUrl,
+//       ReceiptHandle: message.ReceiptHandle,
+//     });
+//     await client.send(deleteCommand);
+//     console.log("Message deleted from SQS.");
+//   } catch (error) {
+//     console.error("Error processing SQS queue:", error);
+//   }
+// }
 
 // Check the queue every 5 second
-setInterval(processQueue, 5000); 
+// setInterval(processQueue, 5000); 
 
 // Listen for a new client connection
 io.on('connection', (socket) => {
@@ -194,8 +194,7 @@ const compressVideo = (inputBuffer, socket) => {
           console.log(`Progress: ${progress.percent}%`);
           try {
             // Emit the compression progress to the client using socket.io
-            // io.emit('compression-progress', progress); 
-            socket.to(socket.id).emit('compression-progress', progress);
+            io.emit('compression-progress', progress); 
           } catch (error) {
             console.error('Failed to emit compression-progress:', error);
           }
@@ -267,14 +266,7 @@ router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
 
         if (file.mimetype.startsWith('video/')) {
           // Call the function to compress the video
-          // processedMedia = await compressVideo(file.buffer, io);
-          const message = {
-            fileBuffer: file.buffer.toString('base64'),
-            originalName: file.originalname,
-            mimetype: file.mimetype,
-          };
-  
-          await sendMessageToQueue(message);
+          processedMedia = await compressVideo(file.buffer, io);
           compressedFilePath = uniqueName;
         } else {
           console.error(`Unsupported file type: ${file.mimetype}`);
