@@ -59,7 +59,7 @@ const client = new SQS.SQSClient({
   region: "ap-southeast-2",
 });
 
-// Function to send a message (=compression requests) to the SQS queue
+// Send a message to the SQS queue　when the user uploads the video to compress 
 async function sendMessageToQueue(message) {
   const command = new SQS.SendMessageCommand({
     QueueUrl: sqsQueueUrl,
@@ -76,7 +76,7 @@ async function sendMessageToQueue(message) {
   }
 }
 
-// Process messages from SQS
+// Process messages from SQS which is called every 5 seconds 
 async function processQueue() {
   const command = new ReceiveMessageCommand({
     QueueUrl: sqsQueueUrl,
@@ -110,7 +110,7 @@ async function processQueue() {
   }
 }
 
-// Check the queue every 5 second
+// Check the queue every 5 second. Process teh
 setInterval(processQueue, 5000); 
 
 // Listen for a new client connection
