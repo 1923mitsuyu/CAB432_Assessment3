@@ -13,6 +13,7 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { S3Client, PutObjectCommand, CreateBucketCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const SQS = require("@aws-sdk/client-sqs");
 
 // Initialize the S3 client
 const s3Client = new S3Client({
@@ -50,14 +51,11 @@ let reconnectAttempts = {};
 // Serve static files
 router.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const SQS = require("@aws-sdk/client-sqs");
-
-const message = "This is the message that will be queued.";
-const sqsQueueUrl = "https://sqs.ap-southeast-2.amazonaws.com/901444280953/video-compression-requests-n11535857";
-
 const client = new SQS.SQSClient({
   region: "ap-southeast-2",
 });
+
+const sqsQueueUrl = process.env.SQS_QUEUE_URL;
 
 // Send a message to the SQS queue　when the user uploads the video to compress 
 async function sendMessageToQueue(message) {
@@ -70,7 +68,6 @@ async function sendMessageToQueue(message) {
   try {
     const response = await client.send(command);
     console.log("Sending a message", response);
-    // await processQueue();
   } catch (error) {
     console.error("Error sending message to SQS:", error);
   }
@@ -78,7 +75,7 @@ async function sendMessageToQueue(message) {
 
 // Process messages from SQS which is called every 5 seconds 
 async function processQueue() {
-  const command = new ReceiveMessageCommand({
+  const command = new SQS.ReceiveMessageCommand({
     QueueUrl: sqsQueueUrl,
     MaxNumberOfMessages: 1,
     WaitTimeSeconds: 20,
@@ -86,25 +83,30 @@ async function processQueue() {
   });
 
   try {
+
+    // Check of there is a message in the queue
     const response = await client.send(command);
     if (!response.Messages || response.Messages.length === 0) {
       console.log("No messages received.");
       return;
     }
 
+    // If there is a message to recieve, fetch the first data in the queue 
     const message = response.Messages[0];
     console.log("Received message:", message.Body);
 
-    // Here, you can call your compression function
+    // Call the function to compress the data 
     await compressVideo(JSON.parse(message.Body));
 
     // Delete the message from the queue
-    const deleteCommand = new DeleteMessageCommand({
+    const deleteCommand = SQS.DeleteMessageCommand({
       QueueUrl: sqsQueueUrl,
       ReceiptHandle: message.ReceiptHandle,
     });
+
     await client.send(deleteCommand);
     console.log("Message deleted from SQS.");
+
   } catch (error) {
     console.error("Error processing SQS queue:", error);
   }
@@ -244,7 +246,6 @@ router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
   const trx = await db.transaction();
 
   try {
-
     // Check if any files were uploaded
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, message: 'No files uploaded' });
