@@ -1,6 +1,0 @@
-[submodule "user-management"]
-	path = user-management
-	url = https://github.com/1923mitsuyu/CAB432_Assessment3.git
-[submodule "video-compression"]
-	path = video-compression
-	url = https://github.com/1923mitsuyu/CAB432_Assessment3.git
