@@ -6,9 +6,9 @@ function App() {
   return (
       <div>
         <header>
-          <Router basename="/login">
+          <Router basename="/">
             <Routes>
-              <Route path="/login" element={<Login/>} />
+              <Route path="/" element={<Login/>} />
             </Routes>
           </Router>
         </header>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
-import { useAuth } from './Auth';
+// import { useAuth } from './Auth';
 
 const Home = ({ isAuthenticated }) => {
 
@@ -10,13 +10,12 @@ const Home = ({ isAuthenticated }) => {
     const [errorMessage, setErrorMessage] = useState(""); 
     const [uploadProgress, setUploadProgress] = useState(0);
     const [showAlert, setShowAlert] = useState(false);
-    const navigate = useNavigate();
-    const { logout } = useAuth();
+    // const { logout } = useAuth();
 
     let socket;
     const connectSocket = () => {
         
-        socket = io('http://3.106.121.122:3002', {
+        socket = io('http://3.27.66.131:3002', { // Change here
             transports: ['websocket'],
         });
 
@@ -76,8 +75,9 @@ const Home = ({ isAuthenticated }) => {
     // Log out (Navigate to the login page and remove the token)
     const handleLogOff = () => {
         // Navigate to the log in / sign up page when the log off button is pressed
-        
-        logout();
+        // logout();
+        const apiUrl2 = process.env.REACT_APP_API_BASE_URL2; 
+        window.location.href = `http://${apiUrl2}:3000`;
     }
 
     // Compress the uploaded videos 
@@ -98,7 +98,7 @@ const Home = ({ isAuthenticated }) => {
             // Take the api url from .env file
             const apiUrl = process.env.REACT_APP_API_BASE_URL; 
             // Fetch the endpoint to compress the uploaded video 
-            const response = await fetch(`${apiUrl}/api/uploadMedia`, { 
+            const response = await fetch(`http://${apiUrl}:3001/api/uploadMedia`, { 
                 method: 'POST',
                 body: formData,
             });

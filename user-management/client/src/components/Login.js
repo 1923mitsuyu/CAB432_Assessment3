@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './Auth';
+// import { useAuth } from './Auth';
 import '../App.css';
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
   const navigate = useNavigate();
-  const { token, login } = useAuth();
+  // const { token, login } = useAuth();
 
-  useEffect(() => {
-    if (token) {
-      // Redirect to the home page 
-      window.location.href = 'http://ec2-13-239-32-88.ap-southeast-2.compute.amazonaws.com/home:3000'; // Change this to the correct url 
-    }
-  }, [token, navigate]);
+  // useEffect(() => {
+  //   if (token) {
+  //     // Redirect to the home page 
+  //     window.location.href = 'http://ec2-13-239-32-88.ap-southeast-2.compute.amazonaws.com/home:3000'; // Change this to the correct url 
+  //   }
+  // }, [token, navigate]);
 
   const LoginForm = ({ setIsLogin }) => {
 
@@ -36,9 +36,11 @@ const Login = () => {
         }
 
         const apiUrl = process.env.REACT_APP_API_BASE_URL;
+        const apiUrl2 = process.env.REACT_APP_API_BASE_URL2;
+
         console.log("Sending login request to:", `${apiUrl}/api/login`);
 
-        const response = await fetch(`${apiUrl}/api/login?email=${encodeURIComponent(loginEmail)}&password=${encodeURIComponent(loginPassword)}`, {
+        const response = await fetch(`http://${apiUrl}:3001/api/login?email=${encodeURIComponent(loginEmail)}&password=${encodeURIComponent(loginPassword)}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -59,9 +61,9 @@ const Login = () => {
           setErrorMessage(data.message || "Invalid email or password. Please try again.");
         } else {
           console.log("Login successful, token:", data.token);
-          login(data.token);
+          // login(data.token);
           // Redirect to the home page 
-          window.location.href = 'http://ec2-13-239-32-88.ap-southeast-2.compute.amazonaws.com/home:3000'; // Change this to the correct url 
+          window.location.href = `http://${apiUrl2}:3000`; 
         }
       } catch (error) {
         console.error("Login error:", error);
