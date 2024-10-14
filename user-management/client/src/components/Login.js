@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 // import { useAuth } from './Auth';
 import '../App.css';
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   // const { token, login } = useAuth();
 
   // useEffect(() => {
@@ -131,7 +131,9 @@ const Login = () => {
         }
 
         const apiUrl = process.env.REACT_APP_API_BASE_URL;
-        const response = await fetch(`${apiUrl}/api/users`, {
+        const apiUrl2 = process.env.REACT_APP_API_BASE_URL2;
+        
+        const response = await fetch(`http://${apiUrl}:3001/api/users`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -151,7 +153,7 @@ const Login = () => {
 
         if (data.success) {
           setIsLogin(true);
-          navigate('/home');
+          window.location.href = `http://${apiUrl2}:3000`; 
         } else {
           setError(data.message || 'Account creation failed. Please try again.');
         }
