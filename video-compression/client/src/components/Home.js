@@ -14,9 +14,43 @@ const Home = ({ isAuthenticated }) => {
 
     let socket;
     const connectSocket = () => {
-        
         socket = io('http://3.27.66.131:3002', { // Change here
             transports: ['websocket'],
+        });
+
+        socket.on('downloadURL', (data) => {
+            try {
+
+                console.log("Download URL:", data.downloadUrl);
+                setShowAlert(true);
+
+                // Remove the alert and reset the progress bar in 4 seconds after the compression is done
+                setTimeout(() => {
+                    setShowAlert(false);
+                    setUploadProgress(0);
+                    }, 4000);
+             
+                // Reset the chosen file and remove a potential error message
+                setSelectedFiles([]);
+                setErrorMessage(""); 
+
+                if (data.downloadUrl) {
+                    console.log("Starting to download the video"); 
+                    const downloadUrl = data.downloadUrl;
+                    const filename = downloadUrl.split('/').pop(); 
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.download = filename || 'video.mp4';  
+                    link.style.display = 'none';  
+                    document.body.appendChild(link);
+                    link.click();  
+                    document.body.removeChild(link);  
+                } else {
+                    console.error("Download URL is not available.");
+                }
+            } catch (error) {
+                console.error("Error during download:", error);
+            }
         });
 
         // Set up listeners inside the connection function
@@ -108,40 +142,12 @@ const Home = ({ isAuthenticated }) => {
                 throw new Error(errorData.message || 'Upload has failed unfortunately');
             }
 
-            const data = await response.json();
-            
-            // Create a download link once the compression is successfully done
-            if (data.success && data.downloadUrl){
-                const link = document.createElement('a');
-                link.href = data.downloadUrl;
-                link.download = 'video.mp4'; 
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-
-                // Displays the alert on the top of the app when the compression is done
-                setShowAlert(true);
-
-                // Remove the alert and reset the progress bar in 4 seconds after the compression is done
-                setTimeout(() => {
-                    setShowAlert(false);
-                    setUploadProgress(0);
-                }, 4000);
-            }
-            else {
-                console.log("No data to download")
-            }
-
-            // Reset the chosen file and remove a potential error message
-            setSelectedFiles([]);
-            setErrorMessage(""); 
-
         } catch (error) {
             console.error('Error:', error);
             setErrorMessage(error.message); 
         } finally {
             // Displays "upload" on the button
-            setUploading(false); 
+            // setUploading(false); 
         }
     }
 

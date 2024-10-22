@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { app, initializeDatabase} = require('../app'); 
+const { initializeDatabase } = require('../db'); 
+const app = require('../app.js'); 
 const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
@@ -14,14 +15,23 @@ require('dotenv').config();
 const { S3Client, PutObjectCommand, CreateBucketCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const SQS = require("@aws-sdk/client-sqs");
-const db = initializeDatabase();
-
-processQueue(db);
 
 // Initialize the S3 client
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
 });
+
+let db; 
+
+(async () => {
+  try {
+    db = await initializeDatabase(); 
+    await processQueue(db); 
+  } catch (error) {
+    console.error("Failed to connect to the database:", error);
+    process.exit(1); 
+  }
+})();
 
 const checkBucketExists = async () => {
   try {
@@ -107,7 +117,7 @@ async function sendMessageToQueue(message) {
 }
 
 // Process messages from SQS which is called every 5 seconds 
-async function processQueue() {
+async function processQueue(db) {
 
   const receiveCommand = new SQS.ReceiveMessageCommand({
     QueueUrl: sqsQueueUrl,
@@ -119,19 +129,21 @@ async function processQueue() {
   const waitTime = 5000; 
   const mediaIDs = [];
 
-  // Watch the queue permanently
+  // Watch the queue permanently when the server is running 
   while (true) { 
+
     let message; 
+
     try {
       // Recieve a message 
       const response = await client.send(receiveCommand);
       if (!response.Messages || response.Messages.length === 0) {
         console.log("No messages received.");
         await new Promise(resolve => setTimeout(resolve, waitTime));
-        continue; // move on to the next loop
+        continue; 
       }
       else {
-      // If there is a message to recieve, fetch the first data in the queue 
+        // If there is a message to recieve, fetch the first data in the queue 
         message = response.Messages[0];
         console.log("Received message:", message.Body);
     
@@ -146,7 +158,7 @@ async function processQueue() {
         // Check if the bucket already exists 
         await checkBucketExists();
 
-        // Upload a compressed video 
+        // Upload a compressed video to S3 bucket 
         const s3Params = {
           Bucket: process.env.AWS_S3_BUCKET_NAME,
           Key: `uploads/${uniqueName}`,
@@ -158,17 +170,17 @@ async function processQueue() {
         await s3Client.send(command);
         console.log('Uploaded compressed video to S3');
 
-        // Insert the video metadata into the RDS instance 
+        // Insert video metadata into the RDS instance 
         const [mediaID] = await db('media').insert({
-          file: message.fileS3Url,
-          original_name: file.originalname,
+          file: fileS3Url,
+          original_name: originalName,
         });
 
         mediaIDs.push(mediaID);
-
-        if (mediaIDs.length === 0) {
-          return res.status(400).json({ success: false, message: 'No valid files processed' });
-        }
+      
+        // if (mediaIDs.length === 0) {
+        //   return res.status(400).json({ success: false, message: 'No valid files processed' });
+        // }
   
         // Generate a pre-signed URL to download the video file from S3 
         const command2 = new GetObjectCommand({
@@ -183,24 +195,32 @@ async function processQueue() {
           console.log("Pre-signed URL:", url);
         } catch (err) {
           console.error("Error generating pre-signed URL:", err);
-          // return res.status(500).json({ success: false, message: err.message });
         }
-  
-        const downloadUrl = url;
-        res.status(201).json({ success: true, downloadUrl });
 
-        // Delete the message from the queue
+        try {
+          if (url) {
+           io.emit('downloadURL', { downloadUrl: url });
+           console.log('Download URL emitted to clients:', url);
+         } else {
+           throw new Error("URL could not be generated");
+          }
+         } catch (error) {
+           console.error("Error emitting download URL:", error.message);
+          //  io.emit('error', { message: "Failed to generate or emit download URL" });
+         }
+ 
+        // Delete the message from the queue once the request is completed 
         const deleteCommand = new SQS.DeleteMessageCommand({
           QueueUrl: sqsQueueUrl,
-         ReceiptHandle: message.ReceiptHandle,
+          ReceiptHandle: message.ReceiptHandle,
         });
 
         await client.send(deleteCommand);
         console.log("Message deleted from SQS.");
+
       }
     } catch (error) {
         console.error("Error processing SQS queue:", error);
-        // メッセージ削除を安全に行うため、必ず ReceiptHandle が存在することを確認
         if (message && message.ReceiptHandle) {
           const deleteCommand = new SQS.DeleteMessageCommand({
             QueueUrl: sqsQueueUrl,
@@ -215,7 +235,6 @@ async function processQueue() {
         // console.log("Deleting an object in the bucket");
         // await deleteS3Object(`uploads/${uniqueName}`);
      
-        // エラー発生時にも待機
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
   }
@@ -259,7 +278,7 @@ function attemptReconnect(clientId) {
           const socket = io.sockets.sockets.get(clientId); 
           if (socket) {
               console.log(`Client ${clientId} reconnected successfully.`);
-              reconnectAttempts[clientId] = 0; // Reset the attempts on success
+              reconnectAttempts[clientId] = 0; 
           } else {
               // If the socket is not found, attempt another reconnect
               attemptReconnect(clientId);
@@ -347,8 +366,6 @@ const deleteS3Object = async (key) => {
 // 3. Recieve the uploaded videos and process it 
 router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
   
-  const db = req.app.locals.db; 
-
   try {
     // Check if any files were uploaded
     if (!req.files || req.files.length === 0) {
@@ -367,9 +384,7 @@ router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
         // let processedMedia;
         const uniqueName = `${uuidv4()}.mp4`;
 
-        if (file.mimetype.startsWith('video/')) {
-          // Call the function to compress the video
-          // processedMedia = await compressVideo(file.buffer, io);
+        if (file.mimetype.startsWith('video/')) {    
           // Upload the raw video to S3 first
           const s3Params = {
             Bucket: process.env.AWS_S3_BUCKET_NAME,
@@ -397,7 +412,7 @@ router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
         }      
       } catch (error) {
         console.error(`Error processing file ${file.originalname}:`, error);
-        return res.status(500).json({ success: false, message: 'Failed to insert metadata into RDS and file deleted from S3' });
+        return res.status(500).json({ success: false, message: 'Failed to send a message to the queue' });
       }
     }
 
