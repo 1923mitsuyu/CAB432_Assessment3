@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const app = require('../app');
+const { app, initializeDatabase} = require('../app'); 
 const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
@@ -14,6 +14,9 @@ require('dotenv').config();
 const { S3Client, PutObjectCommand, CreateBucketCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const SQS = require("@aws-sdk/client-sqs");
+const db = initializeDatabase();
+
+processQueue(db);
 
 // Initialize the S3 client
 const s3Client = new S3Client({
@@ -55,6 +58,36 @@ const client = new SQS.SQSClient({
   region: "ap-southeast-2",
 });
 
+async function downloadFileFromS3(s3Url) {
+
+  const bucketName = process.env.AWS_S3_BUCKET_NAME;
+  const key = s3Url.split(".com/")[1];
+  console.log("key:" + key);
+  
+  const command = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: key
+  });
+
+  try {
+    const response = await s3Client.send(command);
+    const buffer = await streamToBuffer(response.Body); 
+    return buffer;
+  } catch (error) {
+    console.error("Error downloading file from S3:", error);
+    throw error;
+  }
+}
+
+const streamToBuffer = (stream) => {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
+  });
+};
+
 const sqsQueueUrl = process.env.SQS_QUEUE_URL;
 
 // Send a message to the SQS queue　when the user uploads the video to compress 
@@ -75,46 +108,120 @@ async function sendMessageToQueue(message) {
 
 // Process messages from SQS which is called every 5 seconds 
 async function processQueue() {
-  const command = new SQS.ReceiveMessageCommand({
+
+  const receiveCommand = new SQS.ReceiveMessageCommand({
     QueueUrl: sqsQueueUrl,
     MaxNumberOfMessages: 1,
     WaitTimeSeconds: 20,
     VisibilityTimeout: 20,
   });
+  
+  const waitTime = 5000; 
+  const mediaIDs = [];
 
-  try {
+  // Watch the queue permanently
+  while (true) { 
+    let message; 
+    try {
+      // Recieve a message 
+      const response = await client.send(receiveCommand);
+      if (!response.Messages || response.Messages.length === 0) {
+        console.log("No messages received.");
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue; // move on to the next loop
+      }
+      else {
+      // If there is a message to recieve, fetch the first data in the queue 
+        message = response.Messages[0];
+        console.log("Received message:", message.Body);
+    
+        const { fileS3Url, originalName, mimetype, uniqueName } = JSON.parse(message.Body);
 
-    // Check of there is a message in the queue
-    const response = await client.send(command);
-    if (!response.Messages || response.Messages.length === 0) {
-      console.log("No messages received.");
-      return;
-    }
+        // Download the video from S3
+        const fileBuffer = await downloadFileFromS3(fileS3Url);
 
-    // If there is a message to recieve, fetch the first data in the queue 
-    const message = response.Messages[0];
-    console.log("Received message:", message.Body);
+        // Pass the file buffer and call the function to compress the data 
+        const compressedMedia = await compressVideo(fileBuffer, io);
+     
+        // Check if the bucket already exists 
+        await checkBucketExists();
 
-    // Call the function to compress the data 
-    await compressVideo(JSON.parse(message.Body));
+        // Upload a compressed video 
+        const s3Params = {
+          Bucket: process.env.AWS_S3_BUCKET_NAME,
+          Key: `uploads/${uniqueName}`,
+          Body: compressedMedia,
+          ContentType: mimetype,
+        };
 
-    // Delete the message from the queue
-    const deleteCommand = SQS.DeleteMessageCommand({
-      QueueUrl: sqsQueueUrl,
-      ReceiptHandle: message.ReceiptHandle,
-    });
+        const command = new PutObjectCommand(s3Params);
+        await s3Client.send(command);
+        console.log('Uploaded compressed video to S3');
 
-    await client.send(deleteCommand);
-    console.log("Message deleted from SQS.");
+        // Insert the video metadata into the RDS instance 
+        const [mediaID] = await db('media').insert({
+          file: message.fileS3Url,
+          original_name: file.originalname,
+        });
 
-  } catch (error) {
-    console.error("Error processing SQS queue:", error);
+        mediaIDs.push(mediaID);
+
+        if (mediaIDs.length === 0) {
+          return res.status(400).json({ success: false, message: 'No valid files processed' });
+        }
+  
+        // Generate a pre-signed URL to download the video file from S3 
+        const command2 = new GetObjectCommand({
+          Bucket: process.env.AWS_S3_BUCKET_NAME,
+          Key: `uploads/${uniqueName}`,
+        });
+  
+        let url;
+  
+        try {
+          url = await getSignedUrl(s3Client, command2, { expiresIn: 3600 });
+          console.log("Pre-signed URL:", url);
+        } catch (err) {
+          console.error("Error generating pre-signed URL:", err);
+          // return res.status(500).json({ success: false, message: err.message });
+        }
+  
+        const downloadUrl = url;
+        res.status(201).json({ success: true, downloadUrl });
+
+        // Delete the message from the queue
+        const deleteCommand = new SQS.DeleteMessageCommand({
+          QueueUrl: sqsQueueUrl,
+         ReceiptHandle: message.ReceiptHandle,
+        });
+
+        await client.send(deleteCommand);
+        console.log("Message deleted from SQS.");
+      }
+    } catch (error) {
+        console.error("Error processing SQS queue:", error);
+        // メッセージ削除を安全に行うため、必ず ReceiptHandle が存在することを確認
+        if (message && message.ReceiptHandle) {
+          const deleteCommand = new SQS.DeleteMessageCommand({
+            QueueUrl: sqsQueueUrl,
+            ReceiptHandle: message.ReceiptHandle,
+          });
+     
+           await client.send(deleteCommand);
+           console.log("Message deleted from SQS due to error.");
+         }
+     
+        // S3オブジェクトの削除を行う
+        // console.log("Deleting an object in the bucket");
+        // await deleteS3Object(`uploads/${uniqueName}`);
+     
+        // エラー発生時にも待機
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
   }
 }
 
 // Check the queue every 5 second. Process teh
-setInterval(processQueue, 5000); 
-
 // Listen for a new client connection
 io.on('connection', (socket) => {
   // Log the new client's unique socket ID
@@ -196,8 +303,8 @@ const compressVideo = (inputBuffer, socket) => {
           console.log(`Progress: ${progress.percent}%`);
           try {
             // Emit the compression progress to the client using socket.io
-            // io.emit('compression-progress', progress); 
-            socket.to(socket.id).emit('compression-progress', progress);
+            io.emit('compression-progress', progress); 
+            // socket.to(socket.id).emit('compression-progress', progress);
           } catch (error) {
             console.error('Failed to emit compression-progress:', error);
           }
@@ -242,9 +349,6 @@ router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
   
   const db = req.app.locals.db; 
 
-  // Start a transaction
-  const trx = await db.transaction();
-
   try {
     // Check if any files were uploaded
     if (!req.files || req.files.length === 0) {
@@ -257,107 +361,52 @@ router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    const mediaIDs = [];
-    let compressedFilePath = '';
-
     // Iterate over each uploaded file
     for (const file of req.files) {
       try {
-        let processedMedia;
+        // let processedMedia;
         const uniqueName = `${uuidv4()}.mp4`;
 
         if (file.mimetype.startsWith('video/')) {
           // Call the function to compress the video
           // processedMedia = await compressVideo(file.buffer, io);
+          // Upload the raw video to S3 first
+          const s3Params = {
+            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Key: `uploads/${uniqueName}`,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+          };
+
+          await s3Client.send(new PutObjectCommand(s3Params));
+          console.log('Uploaded raw video to S3:', uniqueName);
+
           const message = {
-            fileBuffer: file.buffer.toString('base64'),
+            // fileBuffer: file.buffer.toString('base64'),
+            fileS3Url: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/uploads/${uniqueName}`,
+            uniqueName: uniqueName,
             originalName: file.originalname,
             mimetype: file.mimetype,
           };
   
           await sendMessageToQueue(message);
-          compressedFilePath = uniqueName;
+
         } else {
           console.error(`Unsupported file type: ${file.mimetype}`);
           continue;
-        }
-
-        // Check if the bucket already exists 
-        await checkBucketExists();
-
-        // Declare the S3 bucket 
-        const s3Params = {
-          Bucket: process.env.AWS_S3_BUCKET_NAME,
-          Key: `uploads/${compressedFilePath}`,
-          Body: processedMedia,
-          ContentType: file.mimetype,
-        };
-
-        // Upload the video files to S3 bucket 
-        let s3Response;
-        try {
-          const command = new PutObjectCommand(s3Params);
-          s3Response = await s3Client.send(command);
-          console.log('S3 Upload Response:', s3Response);
-        } catch (s3Error) {
-          console.error('Error uploading to S3:', s3Error);
-            return res.status(500).json({ success: false, message: 'Failed to upload to S3' });
-        }
-
-        const s3Url = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/uploads/${uniqueName}`;
-        
-        // Insert the video metadata into the RDS instance within the transaction
-        const [mediaID] = await trx('media').insert({
-          file: s3Url,
-          original_name: file.originalname,
-        });
-
-        mediaIDs.push(mediaID);
-
-        // If successful, commit the transaction
-        await trx.commit();
-
+        }      
       } catch (error) {
         console.error(`Error processing file ${file.originalname}:`, error);
-        // If an error occurs in the database insertion, delete the uploaded object from S3 bucket.  
-        console.log("Deleting an object in the bucket");
-        await deleteS3Object(`uploads/${compressedFilePath}`);
-         // Roll back the transaction to undo changes
-        await trx.rollback();
         return res.status(500).json({ success: false, message: 'Failed to insert metadata into RDS and file deleted from S3' });
       }
     }
 
-    if (mediaIDs.length === 0) {
-      return res.status(400).json({ success: false, message: 'No valid files processed' });
-    }
-
-    // Generate a pre-signed URL to download the video file from S3 
-    const command = new GetObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET_NAME,
-      Key: `uploads/${compressedFilePath}`,
-    });
-
-    let url;
-
-    try {
-      url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-      console.log("Pre-signed URL:", url);
-    } catch (err) {
-      console.error("Error generating pre-signed URL:", err);
-      return res.status(500).json({ success: false, message: err.message });
-    }
-
-    const downloadUrl = url;
-    res.status(201).json({ success: true, downloadUrl });
-
   } catch (error) {
     console.error('Error in uploadMedia:', error);
     // Rollback the transaction in case of error
-    await trx.rollback();
+    // await trx.rollback();
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
 module.exports = router;
-

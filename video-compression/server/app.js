@@ -105,7 +105,6 @@ async function initializeDatabase() {
   }
 }
 
-// Initialize the database and start the server
 (async () => {
   try {
     await initializeDatabase();
@@ -144,5 +143,5 @@ app.use((err, req, res, next) => {
   res.render('error');
 });
 
-// Export the app
-module.exports = app;
+module.exports = app; 
+
