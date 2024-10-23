@@ -1,13 +1,14 @@
 version: '3.8'
+
 services:      
-  client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    depends_on:
-      - server
+  # client:
+  #   build:
+  #     context: ./client
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - server
 
   server:
     build:
@@ -18,7 +19,7 @@ services:
       - "3002:3002"
     depends_on:
       - db
-
+      # - localstack
     environment:
       DB_HOST: db
       DB_PORT: 3306
@@ -36,7 +37,7 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./initdb:/docker-entrypoint-initdb.d
-
+   
 volumes:
   db_data:
 

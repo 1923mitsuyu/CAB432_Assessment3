@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-// import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 // import { useAuth } from './Auth';
 
@@ -10,11 +10,12 @@ const Home = ({ isAuthenticated }) => {
     const [errorMessage, setErrorMessage] = useState(""); 
     const [uploadProgress, setUploadProgress] = useState(0);
     const [showAlert, setShowAlert] = useState(false);
+    const navigate = useNavigate();
     // const { logout } = useAuth();
 
     let socket;
     const connectSocket = () => {
-        socket = io('http://3.27.66.131:3002', { // Change here
+        socket = io('http://54.206.243.203:3002', { // Change here
             transports: ['websocket'],
         });
 
@@ -48,6 +49,8 @@ const Home = ({ isAuthenticated }) => {
                 } else {
                     console.error("Download URL is not available.");
                 }
+
+                setUploading(false); 
             } catch (error) {
                 console.error("Error during download:", error);
             }
@@ -110,8 +113,7 @@ const Home = ({ isAuthenticated }) => {
     const handleLogOff = () => {
         // Navigate to the log in / sign up page when the log off button is pressed
         // logout();
-        const apiUrl2 = process.env.REACT_APP_API_BASE_URL2; 
-        window.location.href = `http://${apiUrl2}:3000`;
+       navigate("/") 
     }
 
     // Compress the uploaded videos 

@@ -1,14 +1,14 @@
 version: '3.8'
 
 services:      
-  client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    depends_on:
-      - server
+  # client:
+  #   build:
+  #     context: ./client
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - server
 
   server:
     build:
@@ -19,7 +19,7 @@ services:
       - "3002:3002"
     depends_on:
       - db
-      - localstack
+      # - localstack
     environment:
       DB_HOST: db
       DB_PORT: 3306

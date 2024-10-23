@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-// import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 // import { useAuth } from './Auth';
 import '../App.css';
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   // const { token, login } = useAuth();
 
   // useEffect(() => {
@@ -36,7 +36,6 @@ const Login = () => {
         }
 
         const apiUrl = process.env.REACT_APP_API_BASE_URL;
-        const apiUrl2 = process.env.REACT_APP_API_BASE_URL2;
 
         console.log("Sending login request to:", `${apiUrl}/api/login`);
 
@@ -63,7 +62,8 @@ const Login = () => {
           console.log("Login successful, token:", data.token);
           // login(data.token);
           // Redirect to the home page 
-          window.location.href = `http://${apiUrl2}:3000`; 
+          navigate('/home');
+          // window.location.href = `http://${apiUrl2}:3000`; 
         }
       } catch (error) {
         console.error("Login error:", error);
@@ -153,7 +153,8 @@ const Login = () => {
 
         if (data.success) {
           setIsLogin(true);
-          window.location.href = `http://${apiUrl2}:3000`; 
+          // window.location.href = `http://${apiUrl2}:3000`; 
+          navigate('/home');
         } else {
           setError(data.message || 'Account creation failed. Please try again.');
         }

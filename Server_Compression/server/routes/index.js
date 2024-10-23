@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
-const { v4: uuidv4 } = require('uuid');
+// const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { S3Client, PutObjectCommand, CreateBucketCommand, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
@@ -100,22 +100,6 @@ const streamToBuffer = (stream) => {
 
 const sqsQueueUrl = process.env.SQS_QUEUE_URL;
 
-// Send a message to the SQS queue　when the user uploads the video to compress 
-async function sendMessageToQueue(message) {
-  const command = new SQS.SendMessageCommand({
-    QueueUrl: sqsQueueUrl,
-    DelaySeconds: 10,
-    MessageBody: JSON.stringify(message),
- });
-
-  try {
-    const response = await client.send(command);
-    console.log("Sending a message", response);
-  } catch (error) {
-    console.error("Error sending message to SQS:", error);
-  }
-}
-
 // Process messages from SQS which is called every 5 seconds 
 async function processQueue(db) {
 
@@ -177,11 +161,7 @@ async function processQueue(db) {
         });
 
         mediaIDs.push(mediaID);
-      
-        // if (mediaIDs.length === 0) {
-        //   return res.status(400).json({ success: false, message: 'No valid files processed' });
-        // }
-  
+     
         // Generate a pre-signed URL to download the video file from S3 
         const command2 = new GetObjectCommand({
           Bucket: process.env.AWS_S3_BUCKET_NAME,
@@ -362,66 +342,5 @@ const deleteS3Object = async (key) => {
   });
   await s3Client.send(command);
 };
-
-// 3. Recieve the uploaded videos and process it 
-router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
-  
-  try {
-    // Check if any files were uploaded
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ success: false, message: 'No files uploaded' });
-    }
-
-    // Create a directory to save uploaded files
-    const uploadDir = path.join(__dirname, 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    // Iterate over each uploaded file
-    for (const file of req.files) {
-      try {
-        // let processedMedia;
-        const uniqueName = `${uuidv4()}.mp4`;
-
-        if (file.mimetype.startsWith('video/')) {    
-          // Upload the raw video to S3 first
-          const s3Params = {
-            Bucket: process.env.AWS_S3_BUCKET_NAME,
-            Key: `uploads/${uniqueName}`,
-            Body: file.buffer,
-            ContentType: file.mimetype,
-          };
-
-          await s3Client.send(new PutObjectCommand(s3Params));
-          console.log('Uploaded raw video to S3:', uniqueName);
-
-          const message = {
-            // fileBuffer: file.buffer.toString('base64'),
-            fileS3Url: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/uploads/${uniqueName}`,
-            uniqueName: uniqueName,
-            originalName: file.originalname,
-            mimetype: file.mimetype,
-          };
-  
-          await sendMessageToQueue(message);
-
-        } else {
-          console.error(`Unsupported file type: ${file.mimetype}`);
-          continue;
-        }      
-      } catch (error) {
-        console.error(`Error processing file ${file.originalname}:`, error);
-        return res.status(500).json({ success: false, message: 'Failed to send a message to the queue' });
-      }
-    }
-
-  } catch (error) {
-    console.error('Error in uploadMedia:', error);
-    // Rollback the transaction in case of error
-    // await trx.rollback();
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
 
 module.exports = router;

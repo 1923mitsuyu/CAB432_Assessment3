@@ -14,6 +14,7 @@ RUN npm install @aws-sdk/s3-request-presigner
 RUN npm install @aws-sdk/client-s3
 RUN npm install @aws-sdk/client-cognito-identity-provider
 RUN npm install aws-jwt-verify
+RUN npm install @aws-sdk/client-sqs 
 
 COPY . .
 
