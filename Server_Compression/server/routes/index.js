@@ -64,8 +64,6 @@ let reconnectAttempts = {};
 // Serve static files
 router.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-<<<<<<< HEAD:video-compression/server/routes/index.js
-=======
 const client = new SQS.SQSClient({
   region: "ap-southeast-2",
 });
@@ -223,7 +221,6 @@ async function processQueue(db) {
 }
 
 // Check the queue every 5 second. Process teh
->>>>>>> feature_add_distribution_mechanism_with_SQS:Server_Compression/server/routes/index.js
 // Listen for a new client connection
 io.on('connection', (socket) => {
   // Log the new client's unique socket ID
@@ -306,10 +303,7 @@ const compressVideo = (inputBuffer, socket) => {
           try {
             // Emit the compression progress to the client using socket.io
             io.emit('compression-progress', progress); 
-<<<<<<< HEAD:video-compression/server/routes/index.js
-=======
             // socket.to(socket.id).emit('compression-progress', progress);
->>>>>>> feature_add_distribution_mechanism_with_SQS:Server_Compression/server/routes/index.js
           } catch (error) {
             console.error('Failed to emit compression-progress:', error);
           }
@@ -349,123 +343,4 @@ const deleteS3Object = async (key) => {
   await s3Client.send(command);
 };
 
-<<<<<<< HEAD:video-compression/server/routes/index.js
-// 3. Recieve the uploaded videos and process it 
-router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
-  
-  const db = req.app.locals.db; 
-
-  // Start a transaction
-  const trx = await db.transaction();
-
-  try {
-
-    // Check if any files were uploaded
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ success: false, message: 'No files uploaded' });
-    }
-
-    // Create a directory to save uploaded files
-    const uploadDir = path.join(__dirname, 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const mediaIDs = [];
-    let compressedFilePath = '';
-
-    // Iterate over each uploaded file
-    for (const file of req.files) {
-      try {
-        let processedMedia;
-        const uniqueName = `${uuidv4()}.mp4`;
-
-        if (file.mimetype.startsWith('video/')) {
-          // Call the function to compress the video
-          processedMedia = await compressVideo(file.buffer, io);
-          compressedFilePath = uniqueName;
-        } else {
-          console.error(`Unsupported file type: ${file.mimetype}`);
-          continue;
-        }
-
-        // Check if the bucket already exists 
-        await checkBucketExists();
-
-        // Declare the S3 bucket 
-        const s3Params = {
-          Bucket: process.env.AWS_S3_BUCKET_NAME,
-          Key: `uploads/${compressedFilePath}`,
-          Body: processedMedia,
-          ContentType: file.mimetype,
-        };
-
-        // Upload the video files to S3 bucket 
-        let s3Response;
-        try {
-          const command = new PutObjectCommand(s3Params);
-          s3Response = await s3Client.send(command);
-          console.log('S3 Upload Response:', s3Response);
-        } catch (s3Error) {
-          console.error('Error uploading to S3:', s3Error);
-            return res.status(500).json({ success: false, message: 'Failed to upload to S3' });
-        }
-
-        const s3Url = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/uploads/${uniqueName}`;
-        
-        // Insert the video metadata into the RDS instance within the transaction
-        const [mediaID] = await trx('media').insert({
-          file: s3Url,
-          original_name: file.originalname,
-        });
-
-        mediaIDs.push(mediaID);
-
-        // If successful, commit the transaction
-        await trx.commit();
-
-      } catch (error) {
-        console.error(`Error processing file ${file.originalname}:`, error);
-        // If an error occurs in the database insertion, delete the uploaded object from S3 bucket.  
-        console.log("Deleting an object in the bucket");
-        await deleteS3Object(`uploads/${compressedFilePath}`);
-         // Roll back the transaction to undo changes
-        await trx.rollback();
-        return res.status(500).json({ success: false, message: 'Failed to insert metadata into RDS and file deleted from S3' });
-      }
-    }
-
-    if (mediaIDs.length === 0) {
-      return res.status(400).json({ success: false, message: 'No valid files processed' });
-    }
-
-    // Generate a pre-signed URL to download the video file from S3 
-    const command = new GetObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET_NAME,
-      Key: `uploads/${compressedFilePath}`,
-    });
-
-    let url;
-
-    try {
-      url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-      console.log("Pre-signed URL:", url);
-    } catch (err) {
-      console.error("Error generating pre-signed URL:", err);
-      return res.status(500).json({ success: false, message: err.message });
-    }
-
-    const downloadUrl = url;
-    res.status(201).json({ success: true, downloadUrl });
-
-  } catch (error) {
-    console.error('Error in uploadMedia:', error);
-    // Rollback the transaction in case of error
-    await trx.rollback();
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-=======
->>>>>>> feature_add_distribution_mechanism_with_SQS:Server_Compression/server/routes/index.js
 module.exports = router;
