@@ -68,13 +68,12 @@ async function initializeDatabase() {
         },
       };
   
-    // app.locals.db = knex(dbConfig); 
-    // await app.locals.db.raw('SELECT 1'); 
     const db = knex(dbConfig);
     await db.raw('SELECT 1'); 
     console.log("Connected to RDS database!");
 
-    return db; // Return the db instance
+    return db; 
+    
     } catch (error) {
       console.error("Error initializing database:", error);
       throw error;

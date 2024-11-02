@@ -61,8 +61,6 @@ router.get("/api/login", async (req, res) => {
     });
 
     const response = await cognitoClient.send(command);
-
-    // const db = req.app.locals.db;
     const user = await db('user')
       .select("email", "password", "admin")
       .where({ email })
@@ -189,7 +187,6 @@ router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
           console.log('Uploaded raw video to S3:', uniqueName);
 
           const message = {
-            // fileBuffer: file.buffer.toString('base64'),
             fileS3Url: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/uploads/${uniqueName}`,
             uniqueName: uniqueName,
             originalName: file.originalname,
@@ -210,8 +207,6 @@ router.post('/api/uploadMedia', upload.array('files'), async (req, res) => {
 
   } catch (error) {
     console.error('Error in uploadMedia:', error);
-    // Rollback the transaction in case of error
-    // await trx.rollback();
     res.status(500).json({ success: false, message: error.message });
   }
 });

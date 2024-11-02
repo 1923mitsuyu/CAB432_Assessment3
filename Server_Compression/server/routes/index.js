@@ -23,6 +23,7 @@ const s3Client = new S3Client({
 
 let db; 
 
+// Connect to the database and start monitoring the cloud queue
 (async () => {
   try {
     db = await initializeDatabase(); 
@@ -186,7 +187,6 @@ async function processQueue(db) {
           }
          } catch (error) {
            console.error("Error emitting download URL:", error.message);
-          //  io.emit('error', { message: "Failed to generate or emit download URL" });
          }
  
         // Delete the message from the queue once the request is completed 
@@ -210,11 +210,7 @@ async function processQueue(db) {
            await client.send(deleteCommand);
            console.log("Message deleted from SQS due to error.");
          }
-     
-        // S3オブジェクトの削除を行う
-        // console.log("Deleting an object in the bucket");
-        // await deleteS3Object(`uploads/${uniqueName}`);
-     
+         
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
   }

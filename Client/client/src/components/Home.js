@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
-// import { useAuth } from './Auth';
 
 const Home = ({ isAuthenticated }) => {
 
@@ -11,7 +10,6 @@ const Home = ({ isAuthenticated }) => {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [showAlert, setShowAlert] = useState(false);
     const navigate = useNavigate();
-    // const { logout } = useAuth();
 
     let socket;
     const connectSocket = () => {
@@ -112,7 +110,6 @@ const Home = ({ isAuthenticated }) => {
     // Log out (Navigate to the login page and remove the token)
     const handleLogOff = () => {
         // Navigate to the log in / sign up page when the log off button is pressed
-        // logout();
        navigate("/") 
     }
 
